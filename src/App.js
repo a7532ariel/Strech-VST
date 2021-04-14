@@ -32,11 +32,9 @@ const useStyles = makeStyles((theme) => ({
     marginRight: theme.spacing(1),
     
   },
-    
   gridWord: {
     marginLeft: theme.spacing(7),
     marginTop: theme.spacing(2),
-    // height: '100%',
   },
   searchIcon: {
     fontSize: 100
@@ -57,7 +55,6 @@ const useStyles = makeStyles((theme) => ({
     width: '70%'
   },
   card: {
-//     height: '100%',
     width: '250px',
     height: '300px',
     display: 'flex',
@@ -70,7 +67,6 @@ const useStyles = makeStyles((theme) => ({
   cardMedia: {
     width: '100%',
     paddingTop: '75%', // 16:9
-    // paddingBottom: '-20%', // 16:9
   },
   cardContent: {
     flexGrow: 1
@@ -90,11 +86,9 @@ const useStyles = makeStyles((theme) => ({
     lineClamp: 2,
     wordBreak: "break-all",
     overflow: "hidden",
-//     fontFamily: "Roboto"
   },
   sliderContainer: {
     marginTop: theme.spacing(3),
-    // width: '30%',
   },
   sliderHint: {
     marginBottom: '-5px',
@@ -119,6 +113,7 @@ function App() {
   const [storyText, setStoryText] = useState('')
   const [storyKeyWord, setStoryKeyWord] = useState('')
   const [searchResult, setSearchResult] = useState([])
+  const [searchState, setSearchState] = useState('idle')
 
   const resetState = () => {
     setStoryText('')
@@ -145,9 +140,8 @@ function App() {
 
   const onSelectStoryId = async (value) => {
     setStoryId(value)
-    console.log(value)
+    setSearchState('idle')
     const result = await axios(`${apiURL}/select_story_id?story_id=${value}`);
-    console.log(result.data)
     const image_srcs = result.data.image_ids.map(image_id => { return `https://doraemon.iis.sinica.edu.tw/vist_image/all_images/${image_id}.jpg` })
     setimageIds(image_srcs)
     setSuggestStoryLength(result.data.suggest_len)    
@@ -166,7 +160,6 @@ function App() {
   }
 
   const handleTextFieldChange = (e) => {
-    console.log(storyKeyWord)
     setStoryKeyWord(e.target.value)
   }
 
@@ -177,20 +170,24 @@ function App() {
   }
 
   const onSearch = async () => {
-    console.log("search for ", storyKeyWord)
     resetState()
+    setSearchState('pending')
     const result = await axios.post(`${apiURL}/search_story`, storyKeyWord, {
       headers: { 'Content-Type': 'text/plain' }
     });
-    console.log(result.data)
-    setSearchResult(result.data.map(
-      item => {
-        return {
-          ...item,
-          'image': `https://doraemon.iis.sinica.edu.tw/vist_image/all_images/${item['image']}.jpg`
+    if (result.data.length === 0) {
+      setSearchState('fail')
+    } else {
+      setSearchState('success')
+      setSearchResult(result.data.map(
+        item => {
+          return {
+            ...item,
+            'image': `https://doraemon.iis.sinica.edu.tw/vist_image/all_images/${item['image']}.jpg`
+          }
         }
-      }
-    ))
+      ))
+    }
   }
 
   return (
@@ -268,37 +265,49 @@ function App() {
         </Container>
       </div>
       {
-        searchResult.length !== 0 &&
+        searchState !== 'idle' &&
         <Container className={classes.cardGrid} maxWidth="lg">
-          {/* End hero unit */}
-          <Grid container spacing={4} className={classes.gridList}>
-            {searchResult.map((card) => (
-              <Grid item key={card}>
-                <Card className={classes.card} onClick={()=>onSelectStoryId(card.story_id)}>
-                  
-                      <CardMedia
-                        className={classes.cardMedia}
-                        image={card.image}
-                        title="Image title"
-                      />
-                      <CardContent className={classes.cardContent}>
-                        <Typography gutterBottom variant="h6" component="h3">
-                           {`Story ${card.story_id}`}
-                        </Typography>
-                        <Box
-                          fontWeight="fontWeightLight"
-                          fontSize={15}
-                          component="div"
-                          classes={{root: classes.customBox}}
-                        >
-                            {card.story}
-                        </Box>
-                  </CardContent>
-               
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+          {
+            searchState === 'fail' && 
+            <Typography variant="body1" align="center" color="textSecondary">
+              Sorry:( No results found. Change your query and search again!
+            </Typography>
+          }
+          {
+            searchState === 'success' && 
+            <Grid container spacing={4} className={classes.gridList}>
+              {searchResult.map((card) => (
+                <Grid item key={card}>
+                  <Card className={classes.card} onClick={()=>onSelectStoryId(card.story_id)}>
+                    <CardMedia
+                      className={classes.cardMedia}
+                      image={card.image}
+                      title="Image title"
+                    />
+                    <CardContent className={classes.cardContent}>
+                      <Typography gutterBottom variant="h6" component="h3">
+                        {`Story ${card.story_id}`}
+                      </Typography>
+                      <Box
+                        fontWeight="fontWeightLight"
+                        fontSize={15}
+                        component="div"
+                        classes={{root: classes.customBox}}
+                      >
+                        {card.story}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          }
+          {
+            searchState === 'pending' && 
+            <Typography variant="body1" align="center" color="textSecondary">
+              Searching...
+            </Typography>
+          }
         </Container>
       }
       {
