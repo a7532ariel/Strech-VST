@@ -4,14 +4,28 @@ import axios from 'axios';
 import './App.css';
 
 import Select, { createFilter } from "react-select";
-import Slider from './components/Slider';
 import MenuList from './components/MenuList';
 import Img from './components/Img';
 
-import { Typography, Container, Grid, AppBar, Toolbar, TextField, Card, CardContent, CardMedia, Box } from '@material-ui/core';
-import { makeStyles } from '@material-ui/core/styles';
+import { Typography, Container, Grid, AppBar, Toolbar, TextField, Card, CardContent, CardMedia, Box, Slider } from '@material-ui/core';
+import { makeStyles, createMuiTheme, ThemeProvider } from '@material-ui/core/styles';
 import Icon from "@material-ui/core/Icon";
 
+
+const theme = createMuiTheme({
+  overrides: {
+    MuiSlider: {
+      markLabel: {
+        fontSize: '1rem'
+      },
+    }
+  },
+  palette: {
+    secondary: {
+      main: '#ff7961'
+    }
+  }
+});
 
 const useStyles = makeStyles((theme) => ({
   heroContent: {
@@ -91,7 +105,6 @@ const useStyles = makeStyles((theme) => ({
     marginTop: theme.spacing(3),
   },
   sliderHint: {
-    marginBottom: '-5px',
   },
   storyContainer: {
     marginTop: theme.spacing(1),
@@ -125,18 +138,18 @@ function App() {
   }
 
   useEffect(() => {
-      async function fetchStoryIDs() {
-        const result = await axios(`${apiURL}/story_ids`);
-        const options = result.data.map(storyid => {
-          return {
-            value: storyid,
-            label: storyid
-          }
-        })
-        setStoryList(options)
-      }
-      fetchStoryIDs()
-    }, [])
+    async function fetchStoryIDs() {
+      const result = await axios(`${apiURL}/story_ids`);
+      const options = result.data.map(storyid => {
+        return {
+          value: storyid,
+          label: storyid
+        }
+      })
+      setStoryList(options)
+    }
+    fetchStoryIDs()
+  }, [])
 
   const onSelectStoryId = async (value) => {
     setStoryId(value)
@@ -147,12 +160,21 @@ function App() {
     setSuggestStoryLength(result.data.suggest_len)    
     setStoryLength(result.data.suggest_len)    
     setStoryText(result.data.suggest_story)    
-    setAvailableStoryLength(result.data.available_lens)    
-  }
+    setAvailableStoryLength(result.data.available_lens.map(available_len => {
+        if (available_len === result.data.suggest_len)
+          return {
+            value: available_len,
+            label: `${available_len} (Recommended!)`
+          }
+        else return {
+          value: available_len,
+          label: available_len
+        }
+      }
+    ))}
 
   const onChangeStoryLength = (value) => {
-    const storyLen = availableStoryLength[value]
-    setStoryLength(storyLen)
+    setStoryLength(value)
   }
   const onChangeStoryLengthComplete = async () => {
     const result = await axios(`${apiURL}/select_story_length?story_id=${storyId}&story_len=${storyLength}`);
@@ -249,7 +271,6 @@ function App() {
                       id="outlined-secondary"
                       label="Search for Stretch-VIST generated stories"
                       variant="outlined"
-                      // helperText=""
                       fullWidth={true}
                       onChange={handleTextFieldChange}
                       onKeyDown={onEnter}
@@ -315,22 +336,25 @@ function App() {
         <Img srcs={imageIds} />
       }
       {
-        availableStoryLength.length > 1 && 
-        <Container className={classes.sliderContainer} maxWidth="sm">
-          <Typography gutterBottom className={classes.sliderHint} color="textSecondary">
+        availableStoryLength.length > 1 &&
+        <Container className={classes.sliderContainer} maxWidth="md">
+          <Typography component="h4" variant="h5" align="center" color="textPrimary" gutterBottom className={classes.sliderHint} >
             Drag the bar to adjust the length of the story!
           </Typography>
-          <Slider
-            max={availableStoryLength.length-1}
-            min={0}
-            label={value => {
-              if (availableStoryLength[value] === suggestStoryLength)
-                return `${availableStoryLength[value]} (Recommended!)`
-              else return availableStoryLength[value]
-            }}
-            value={availableStoryLength.findIndex(elem => elem === storyLength)}
-            onChange={onChangeStoryLength}
-            onChangeComplete={onChangeStoryLengthComplete} />
+          <ThemeProvider theme={theme}>
+            <Slider
+              key={`slider-${suggestStoryLength}`}
+              color="secondary"
+              min={availableStoryLength[0].value}
+              max={availableStoryLength[availableStoryLength.length-1].value}
+              defaultValue={suggestStoryLength}
+              marks={availableStoryLength}
+              step={null}
+              valueLabelDisplay="on"
+              aria-labelledby="discrete-slider-always"
+              onChange={(e, v)=>onChangeStoryLength(v)}
+              onChangeCommitted={onChangeStoryLengthComplete} />
+          </ThemeProvider>
         </Container>
       }
       {
